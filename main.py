@@ -1,17 +1,25 @@
+import os.path
 import sys
 from PyQt5.QtWidgets import QApplication, QMainWindow, QFileDialog, QMessageBox
 from PyQt5.uic import loadUi
 from modules import MidiData
 from modules.NeuralModel import GuitarInferenceDataset, LSTMModel, getLabels
 import torch
+import os
+def resource_path(relative_path):
 
+    try:
+        base_path = sys._MEIPASS2
+    except Exception:
+        base_path= os.path.abspath("")
+    return os.path.join(base_path, relative_path)
 class MyMainWindow(QMainWindow):
 
     def __init__(self):
         super().__init__()
-        loadUi('bins/MainWindow.ui', self)  # Load your UI file created in Qt Designer
+        loadUi(resource_path('bins\\MainWindow.ui'), self)  # Load your UI file created in Qt Designer
         self.init_ui()
-        self.model = torch.load('bins/sample_model.pth')
+        self.model = torch.load(resource_path('bins\\sample_model.pth'))
         self.model.eval()
     def init_ui(self):
         self.loadButton.clicked.connect(self.load_file)

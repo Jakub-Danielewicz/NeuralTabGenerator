@@ -13,6 +13,13 @@ import sys
 
 from modules.token_splitter import split_rare_token, unsplit_fx
 
+def resource_path(relative_path):
+
+    try:
+        base_path = sys._MEIPASS2
+    except Exception:
+        base_path= os.path.abspath("")
+    return os.path.join(base_path, relative_path)
 # Note: 
 # "clean" = Clean Electric Guitar or Acoustic Guitar
 # "distorted" = Distorted Guitar or Overdrive Guitar
@@ -1327,7 +1334,7 @@ def convert_strings_for_pygp(strings, pitch_shift=0):
     return gs
 # Tests
 ## LOAD a BLANK GP5 SCORE 
-blankgp5 = gp.parse("bins/blank.gp5")
+blankgp5 = gp.parse(resource_path("bins\\blank.gp5"))
 blankgp5.tracks = []
 new_track = gp.Track(blankgp5)
 strings = ['E5', 'B4', 'G4', 'D4', 'A3', 'E3']
@@ -1644,7 +1651,7 @@ def tokens2guitarpro(all_tokens, verbose=False):
     # CREATE a new GP5 file from BLANKGP5 
 
     ## LOAD the BLANK GP5 SCORE 
-    blankgp5 = gp.parse("bins/blank.gp5")
+    blankgp5 = gp.parse(resource_path("bins\\blank.gp5"))
     blankgp5.tracks = []
     blankgp5.tempo = initial_tempo
     
