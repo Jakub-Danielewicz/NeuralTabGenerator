@@ -3,6 +3,7 @@ import pandas as pd
 import math
 import numpy as np
 from modules import dadagp
+import torch
 
 noteTicks = {
     128: 30,
@@ -23,6 +24,61 @@ tuning = {  #słownik z wysokościami MIDI danych strun
     5: 45,
     6: 40
 }
+
+
+def getAverageFret(vector):
+
+    filtered_arr = vector[vector != 25]
+    if len(filtered_arr) > 0:
+        return np.mean(filtered_arr)
+    else:
+        return 25
+def manualAssign(pitch, labels,previous=np.zeros(6)+25):
+
+    labels = labels.numpy()
+    previous=previous.numpy()
+    proximity=getAverageFret(previous)
+    free_strings=[string+1 for string,fret in enumerate(labels) if fret == 25]
+    best_string=1
+    best_fret=24
+    best_score= np.inf
+    print("proximity",proximity)
+
+    for idx in free_strings:
+        fret = pitch-tuning[idx]
+        if proximity == 25:
+            bias=fret
+        else:
+            bias=proximity
+        if fret in range(0,25) and np.abs(fret-bias) < best_score:
+            best_score = np.abs(fret-bias)
+            best_string=idx
+            best_fret=pitch-tuning[best_string]
+
+    return best_string, best_fret
+
+def resolveDouble(pitch, labels):
+    labels = labels.numpy()
+    proximity = [fret for string, fret in enumerate(labels) if fret != 25
+                    and tuning[string+1] + fret != pitch]
+    best_score = np.inf
+    best_string = 25
+    best_fret = 25
+    if len(proximity)>0:
+        proximity = np.mean(proximity)
+        for string,fret in enumerate(labels):
+            score = np.abs(fret-proximity)
+            if tuning[string+1]+fret==pitch and score<best_score:
+                best_string = string
+                best_fret = fret
+                best_score = score
+    return best_string, best_fret
+
+
+
+
+
+
 def pitchshift(value):
     while not (tuning[6] <= value <= tuning[1]+24):
         if value < tuning[6]:
@@ -69,11 +125,12 @@ class Song:
         return data
 
 class Track:
-    def __init__(self, dataframe, bpm, timesig=(4,4),resolution=32):
+    def __init__(self, dataframe, bpm, artist,timesig=(4,4) ):
         self.dataframe = dataframe
         self.bpm = bpm
         self.timesig= timesig
         self.measures = measureVector(self.dataframe['end'].max(),timesig=self.timesig)
+        self.artist= artist
 
     def getEncodedVectors(self):
         steps = self.dataframe['start'].unique()
@@ -102,20 +159,29 @@ class Track:
                             print(
                                 f'2 activations at once!!, string: {string + 1}, pitch: {pitch}, {labels[i]}, already: {self.dataframe.loc[idx, "string"]}')
                             counter_activations += 1
+                            mstring, mfret = resolveDouble(pitch, labels[i])
+                            if mstring != 25:
+                                self.dataframe.loc[idx, 'string'] = mstring + 1
+                                self.dataframe.loc[idx, 'fret'] = mfret
+                                break
 
                         self.dataframe.loc[idx, 'string'] = string + 1
                         self.dataframe.loc[idx, 'fret'] = fret.item()
                         # break
                     if string == 5 and self.dataframe.loc[idx, 'string'] == 0:
-                        print(
-                            f'nie znaleziono odpowiedniego labela: \n note number: {idx} pitch: {pitch}, tensor: {labels[i]}')
+                        print(f'no label at {idx}, assigning manually')
+                        if i>0:
+                            mstring, mfret = manualAssign(pitch, labels[i], labels[i-1])
+                        else:
+                            mstring, mfret = manualAssign(pitch, labels[i])
+                        labels[i, mstring-1]=mfret
                         counter_no_labels += 1
-                        self.dataframe.loc[idx, 'string'] = 1
-                        self.dataframe.loc[idx, 'fret'] = 22
+                        self.dataframe.loc[idx, 'string'] = mstring
+                        self.dataframe.loc[idx, 'fret'] = mfret
 
 
     def export(self, path):
-        artist = "Jakub Danielewicz"
+        artist = self.artist
         downtune = "downtune:" + str(0)
         tempo = "tempo:" + str(self.bpm)
         tokens = [artist, downtune, tempo, 'start', "new_measure"]
@@ -140,8 +206,6 @@ class Track:
                     toEncode[idx].append([note['string'], note['fret'], 0])
 
 
-        ticksPerMeasure = self.timesig[0] * (
-                    3840 / self.timesig[1])
 
         for idx, times in enumerate(zip(tokenBase, tokenBase[1:])):
             start, end = times
@@ -159,9 +223,10 @@ class Track:
         dadagp.dadagp_decode(tokens, path)
         print(self.measures)
     def removeWrong(self):
-        self.dataframe = self.dataframe[self.dataframe['pitch']<=tuning[1]+24]
+        self.dataframe = self.dataframe[self.dataframe['pitch'] <= tuning[1]+24]
         self.dataframe = self.dataframe[self.dataframe['pitch'] >= tuning[6]]
     def pitchShiftWrong(self):
         filtered_indices = (self.dataframe['pitch'] > tuning[1]+24) | (self.dataframe['pitch'] < tuning[6] )
-        self.dataframe.loc[filtered_indices, 'pitch'] = self.dataframe.loc[filtered_indices, 'pitch'].apply(pitchshift).astype("int32")
+        self.dataframe.loc[filtered_indices, 'pitch'] = self.dataframe.loc[filtered_indices, 'pitch'].apply(pitchshift)\
+            .astype("int32")
         self.dataframe['pitch'].astype('int32')
