@@ -2,7 +2,7 @@ import os.path
 import sys
 from PyQt5.QtWidgets import QApplication, QMainWindow, QFileDialog, QMessageBox, QDialog
 from PyQt5.uic import loadUi
-from PyQt5.QtCore import pyqtSignal, QEventLoop
+from PyQt5.QtCore import pyqtSignal
 from modules import MidiData
 from modules.NeuralModel import GuitarInferenceDataset, LSTMModel, getLabels
 import torch

@@ -29,10 +29,12 @@ tuning = {  #słownik z wysokościami MIDI danych strun
 def getAverageFret(vector):
 
     filtered_arr = vector[vector != 25]
+    filtered_arr = filtered_arr[filtered_arr != 0]
+    print("filtered:",filtered_arr)
     if len(filtered_arr) > 0:
         return np.mean(filtered_arr)
     else:
-        return 25
+        return 0
 def manualAssign(pitch, labels,previous=np.zeros(6)+25):
 
     labels = labels.numpy()
@@ -46,21 +48,18 @@ def manualAssign(pitch, labels,previous=np.zeros(6)+25):
 
     for idx in free_strings:
         fret = pitch-tuning[idx]
-        if proximity == 25:
-            bias=fret
-        else:
-            bias=proximity
-        if fret in range(0,25) and np.abs(fret-bias) < best_score:
-            best_score = np.abs(fret-bias)
+        if fret in range(0,25) and np.abs(fret-proximity) < best_score:
+            best_score = np.abs(fret-proximity)
             best_string=idx
             best_fret=pitch-tuning[best_string]
-
+    print("previous: ",previous)
+    print(best_string, best_fret)
     return best_string, best_fret
 
 def resolveDouble(pitch, labels):
     labels = labels.numpy()
     proximity = [fret for string, fret in enumerate(labels) if fret != 25
-                    and tuning[string+1] + fret != pitch]
+                    and tuning[string+1] + fret != pitch and fret!=0]
     best_score = np.inf
     best_string = 25
     best_fret = 25
