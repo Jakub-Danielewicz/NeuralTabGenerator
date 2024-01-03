@@ -39,7 +39,12 @@ def manualAssign(pitch, labels,previous=np.zeros(6)+25):
 
     labels = labels.numpy()
     previous=previous.numpy()
-    proximity=getAverageFret(previous)
+    if np.any(np.logical_and(labels != 25, labels != 0)):
+        print("choosing this vector")
+        proximity = getAverageFret(labels)
+    else:
+        print("choosing previous vector")
+        proximity=getAverageFret(previous)
     free_strings=[string+1 for string,fret in enumerate(labels) if fret == 25]
     best_string=1
     best_fret=24
@@ -56,25 +61,26 @@ def manualAssign(pitch, labels,previous=np.zeros(6)+25):
     print(best_string, best_fret)
     return best_string, best_fret
 
-def resolveDouble(pitch, labels):
+
+
+def resolveDouble(pitch, labels, previous = np.zeros(6)+25):
     labels = labels.numpy()
-    proximity = [fret for string, fret in enumerate(labels) if fret != 25
-                    and tuning[string+1] + fret != pitch and fret!=0]
+    previous = previous.numpy()
+    labels_filtered = np.array([fret for string, fret in enumerate(labels) if tuning[string+1] + fret != pitch and fret != 25])
+    if len(labels_filtered)>0:
+        proximity = getAverageFret(labels_filtered)
+    else:
+        proximity = getAverageFret(previous)
     best_score = np.inf
     best_string = 25
     best_fret = 25
-    if len(proximity)>0:
-        proximity = np.mean(proximity)
-        for string,fret in enumerate(labels):
-            score = np.abs(fret-proximity)
-            if tuning[string+1]+fret==pitch and score<best_score:
-                best_string = string
-                best_fret = fret
-                best_score = score
+    for string,fret in enumerate(labels):
+        score = np.abs(fret-proximity)
+        if tuning[string+1]+fret==pitch and score<best_score:
+            best_string = string
+            best_fret = fret
+            best_score = score
     return best_string, best_fret
-
-
-
 
 
 
@@ -148,7 +154,7 @@ class Track:
         all_timestamps = self.dataframe['start'].unique()
         counter_activations = 0
         counter_no_labels = 0
-        for i, timestamp in enumerate(all_timestamps):  # jest 128 nut midi
+        for i, timestamp in enumerate(all_timestamps):
             group = self.dataframe[self.dataframe['start'] == timestamp]
             for idx, note in group.iterrows():
                 pitch = note['pitch']
@@ -158,8 +164,10 @@ class Track:
                             print(
                                 f'2 activations at once!!, string: {string + 1}, pitch: {pitch}, {labels[i]}, already: {self.dataframe.loc[idx, "string"]}')
                             counter_activations += 1
-                            mstring, mfret = resolveDouble(pitch, labels[i])
-                            if mstring != 25:
+                            if i>0:
+                                mstring, mfret = resolveDouble(pitch, labels[i], labels[i-1])
+                            else:
+                                mstring, mfret = resolveDouble(pitch, labels[i])
                                 self.dataframe.loc[idx, 'string'] = mstring + 1
                                 self.dataframe.loc[idx, 'fret'] = mfret
                                 break

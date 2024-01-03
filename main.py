@@ -42,7 +42,7 @@ class MyMainWindow(QMainWindow):
 
     def __init__(self):
         super().__init__()
-        loadUi(resource_path('bins\\MainWindow.ui'), self)  # Load your UI file created in Qt Designer
+        loadUi(resource_path('bins\\MainWindow.ui'), self)
         self.init_ui()
         self.model = torch.load(resource_path('bins\\sample_model.pth'))
         self.model.eval()
@@ -51,7 +51,7 @@ class MyMainWindow(QMainWindow):
         self.generateButton.clicked.connect(self.runOptionsDialog)
 
 
-        # Initially hide the generate and save buttons
+        # Initially hide the generate
         self.generateButton.hide()
 
 
