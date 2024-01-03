@@ -11,13 +11,13 @@ def getLabels(model, data):
         outputs = model(features)
 
 
-    outputs = outputs.view(data.num_sequences, data.sequence_length, 6, 26)
+    outputs = outputs.view(data.num_sequences, data.sequence_length, 6, 27)
     _, preds = torch.max(outputs, 3)
     preds = preds.view(-1, 6)
 
     # Czyszczenie tensora z paddingu
     features = features.view(-1, 128)
-    padded = (features == 25).all(dim=1)
+    padded = (features == 26).all(dim=1)
     padded = torch.nonzero(padded).squeeze()
 
     mask = torch.ones(preds.shape[0], dtype=torch.bool)
@@ -40,7 +40,7 @@ class GuitarInferenceDataset(Dataset):
             # Pad the sequence if it's shorter than the specified length
             if len(sequence) < self.sequence_length:
                 pad_length = self.sequence_length - len(sequence)
-                pad_vector = np.zeros((pad_length, 128)) + 25  # Create padding vectors
+                pad_vector = np.zeros((pad_length, 128)) + 26  # Create padding vectors
                 sequence = np.vstack((pad_vector, sequence))  # Vertically stack with the sequence
 
             self.sequences.append(sequence)
@@ -84,9 +84,9 @@ class LSTMModel(nn.Module):
 
         out, (h0, c0) = self.lstm(x, (h0, c0))
 
+        out = self.batchnorm(out)
         out = self.relu(self.fc1(out))
 
-        out = self.batchnorm(out)
 
         outputs = self.fc2(out)
 

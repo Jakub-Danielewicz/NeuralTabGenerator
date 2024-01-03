@@ -30,7 +30,6 @@ def getAverageFret(vector):
 
     filtered_arr = vector[vector != 25]
     filtered_arr = filtered_arr[filtered_arr != 0]
-    print("filtered:",filtered_arr)
     if len(filtered_arr) > 0:
         return np.mean(filtered_arr)
     else:
@@ -40,16 +39,13 @@ def manualAssign(pitch, labels,previous=np.zeros(6)+25):
     labels = labels.numpy()
     previous=previous.numpy()
     if np.any(np.logical_and(labels != 25, labels != 0)):
-        print("choosing this vector")
         proximity = getAverageFret(labels)
     else:
-        print("choosing previous vector")
         proximity=getAverageFret(previous)
     free_strings=[string+1 for string,fret in enumerate(labels) if fret == 25]
     best_string=1
     best_fret=24
     best_score= np.inf
-    print("proximity",proximity)
 
     for idx in free_strings:
         fret = pitch-tuning[idx]
@@ -57,15 +53,14 @@ def manualAssign(pitch, labels,previous=np.zeros(6)+25):
             best_score = np.abs(fret-proximity)
             best_string=idx
             best_fret=pitch-tuning[best_string]
-    print("previous: ",previous)
-    print(best_string, best_fret)
     return best_string, best_fret
 
 
 
 def resolveDouble(pitch, labels, previous = np.zeros(6)+25):
     labels = labels.numpy()
-    previous = previous.numpy()
+    if torch.is_tensor(previous):
+        previous = previous.numpy()
     labels_filtered = np.array([fret for string, fret in enumerate(labels) if tuning[string+1] + fret != pitch and fret != 25])
     if len(labels_filtered)>0:
         proximity = getAverageFret(labels_filtered)
@@ -80,7 +75,8 @@ def resolveDouble(pitch, labels, previous = np.zeros(6)+25):
             best_string = string
             best_fret = fret
             best_score = score
-    return best_string, best_fret
+    to_remove = [string for string,fret in enumerate(labels) if tuning[string+1]+fret == pitch and string != best_string]
+    return best_string, best_fret, to_remove
 
 
 
@@ -103,7 +99,6 @@ def measureVector(end, timesig):
 def correctCheck(data):
     max=data['pitch'].max()
     min=data['pitch'].min()
-    print(min, max)
     if max > tuning[1]+24 or min < tuning[6]:
         return False
     return True
@@ -165,12 +160,13 @@ class Track:
                                 f'2 activations at once!!, string: {string + 1}, pitch: {pitch}, {labels[i]}, already: {self.dataframe.loc[idx, "string"]}')
                             counter_activations += 1
                             if i>0:
-                                mstring, mfret = resolveDouble(pitch, labels[i], labels[i-1])
+                                mstring, mfret, to_remove = resolveDouble(pitch, labels[i], labels[i-1])
                             else:
-                                mstring, mfret = resolveDouble(pitch, labels[i])
-                                self.dataframe.loc[idx, 'string'] = mstring + 1
-                                self.dataframe.loc[idx, 'fret'] = mfret
-                                break
+                                mstring, mfret, to_remove = resolveDouble(pitch, labels[i])
+                            self.dataframe.loc[idx, 'string'] = mstring + 1
+                            self.dataframe.loc[idx, 'fret'] = mfret
+                            labels[i,to_remove]=25
+                            break
 
                         self.dataframe.loc[idx, 'string'] = string + 1
                         self.dataframe.loc[idx, 'fret'] = fret.item()
@@ -185,7 +181,7 @@ class Track:
                         counter_no_labels += 1
                         self.dataframe.loc[idx, 'string'] = mstring
                         self.dataframe.loc[idx, 'fret'] = mfret
-
+        print(f'multiple activations: {counter_activations} \t no labels: {counter_no_labels}, notes: {len(self.dataframe)}')
 
     def export(self, path):
         artist = self.artist
@@ -216,7 +212,6 @@ class Track:
 
         for idx, times in enumerate(zip(tokenBase, tokenBase[1:])):
             start, end = times
-            # print(start,ticksPerMeasure)
 
             if start in self.measures:
                 tokens.append("new_measure")
@@ -228,7 +223,6 @@ class Track:
 
         tokens.append("end")
         dadagp.dadagp_decode(tokens, path)
-        print(self.measures)
     def removeWrong(self):
         self.dataframe = self.dataframe[self.dataframe['pitch'] <= tuning[1]+24]
         self.dataframe = self.dataframe[self.dataframe['pitch'] >= tuning[6]]

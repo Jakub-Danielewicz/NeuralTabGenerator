@@ -44,7 +44,8 @@ class MyMainWindow(QMainWindow):
         super().__init__()
         loadUi(resource_path('bins\\MainWindow.ui'), self)
         self.init_ui()
-        self.model = torch.load(resource_path('bins\\sample_model.pth'))
+        self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+        self.model = torch.load(resource_path('bins\\averaged_model_inference.pth'), map_location=self.device)
         self.model.eval()
     def init_ui(self):
         self.loadButton.clicked.connect(self.load_file)
