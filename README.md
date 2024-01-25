@@ -1,5 +1,5 @@
 # NeuralTabGenerator
-  Neural Tab Generator is a program designed to generate Guitar Pro Tablature files in .gp5 format from MIDI files. It utilizes a pre-trained pyTorch model, which was trained on classical guitar compositions obtained from http://www.classclef.com.
+  Neural Tab Generator is a program designed to generate Guitar Pro Tablature files in .gp5 format from MIDI files. It utilizes a pre-trained pyTorch model, which was trained on classical guitar compositions obtained from http://www.classclef.com. DadaGP is utilized for Guitar Pro file export.
 
 The project was created for Bachelor of Engineering thesis in Acoustic Engineering at AGH University of Science and Technology.
 
